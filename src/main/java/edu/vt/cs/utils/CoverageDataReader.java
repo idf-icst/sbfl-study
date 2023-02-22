@@ -24,6 +24,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static edu.vt.cs.models.Constants.DATA_FILE_NAME;
+import static edu.vt.cs.models.Constants.NO_OF_FILES_MAX;
+import static edu.vt.cs.models.Constants.REAL_BUG_ID_UPPER_BOUND;
+
 /**
  * Util class that helps read/load raw coverage data compressed in tar format
  * - Input: source gzoltar data downloaded from fault-localization.cs.washington.edu
@@ -33,12 +37,6 @@ public class CoverageDataReader {
 
     private static final Logger LOG = LoggerFactory.getLogger(CoverageDataReader.class);
 
-    // wget --recursive --no-parent --accept gzoltar-files.tar.gz http://fault-localization.cs.washington.edu/data
-    public static final String src = "/Users/tdao/vt-2023/fault-localization.cs.washington.edu/coverage-data";
-    public static final String dest = "src/main/resources";
-    private static final String DATA_FILE_NAME = "gzoltar-files.tar.gz";
-    private static final int REAL_BUG_ID_UPPER_BOUND = 1000;
-    private static final int NO_OF_FILES_MAX = 1000;
     private static final Predicate<String> isRealBug = bugId -> Integer.parseInt(bugId) <= REAL_BUG_ID_UPPER_BOUND;
 
     private static void decompressTarGzipFile(InputStream uploadedInputStream, Path target) throws IOException {

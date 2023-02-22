@@ -7,10 +7,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
 import java.util.stream.Stream;
 
+import static edu.vt.cs.models.Constants.dest;
+import static edu.vt.cs.models.Constants.src;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class CoverageDataReaderTest {
-
     @ParameterizedTest
     @MethodSource("defaultSourceDestProvider")
     void etlGzoltarCoverageDataTest(String sourcePath, String destPath, int noOfFiles)
@@ -19,6 +20,6 @@ class CoverageDataReaderTest {
     }
 
     static Stream<Arguments> defaultSourceDestProvider() {
-        return Stream.of(arguments(CoverageDataReader.src, CoverageDataReader.dest, 1));
+        return Stream.of(arguments(src, dest, 1));
     }
 }
