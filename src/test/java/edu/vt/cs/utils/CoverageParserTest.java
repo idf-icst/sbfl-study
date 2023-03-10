@@ -10,7 +10,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class CoverageParserTest {
     @Test
     void parse() throws IOException {
-        var spectrum = CoverageParser.parse(Project.Closure, "61");
+        var bug = BugParser.parse()
+                .stream()
+                .filter(b -> b.getProject() == Project.Closure && b.getBugId() == 61)
+                .findFirst()
+                .orElseThrow();
+
+        var spectrum = CoverageParser.parse(bug);
         assertEquals(15267, spectrum.getEntities().size());
         assertEquals(3, spectrum.getTotalOfFailedTests());
         assertEquals(5984, spectrum.getTotalOfPassedTests());

@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -35,7 +36,7 @@ import static edu.vt.cs.models.Constants.REAL_BUG_ID_UPPER_BOUND;
  */
 public class CoverageDataReader {
 
-    private static final Logger LOG = LoggerFactory.getLogger(CoverageDataReader.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private static final Predicate<String> isRealBug = bugId -> Integer.parseInt(bugId) <= REAL_BUG_ID_UPPER_BOUND;
 

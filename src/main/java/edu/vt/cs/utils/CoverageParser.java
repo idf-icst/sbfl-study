@@ -1,15 +1,19 @@
 package edu.vt.cs.utils;
 
+import edu.vt.cs.evaluation.TriggeringMode;
+import edu.vt.cs.models.Bug;
 import edu.vt.cs.models.Entity;
 import edu.vt.cs.models.ImmutableEntity;
 import edu.vt.cs.models.ImmutableSpectrum;
 import edu.vt.cs.models.ImmutableTest;
-import edu.vt.cs.models.Project;
 import edu.vt.cs.models.Result;
 import edu.vt.cs.models.Spectrum;
 import edu.vt.cs.models.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -29,17 +33,34 @@ import static edu.vt.cs.models.Result.Passed;
  * This class build spectrum representation of a project at a snapshot of bugId
  */
 public class CoverageParser {
+    private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    public static Spectrum parse(Project project, String bugId) throws IOException {
+    public static Spectrum parse(Bug bug) throws IOException {
+        return parse(bug, TriggeringMode.COMPLETE);
+    }
 
-        var executedTests = Files.readAllLines(Paths.get(GZOLT_ROOT, project.name(), bugId, MATRIX_FILE_NAME))
-                .stream()
-                .map(toExecutedTest)
-                .toList();
+    public static Spectrum parse(Bug bug, TriggeringMode triggeringMode) {
+        try {
+            LOG.info("Parsing spectrum of bug = {} in mode = {}", bug, triggeringMode);
+            var executedTests = Files.readAllLines(Paths.get(GZOLT_ROOT, bug.getProject().name(),
+                            String.valueOf(bug.getBugId()), MATRIX_FILE_NAME))
+                    .stream()
+                    .map(toExecutedTest)
+                    .toList();
 
-        var fqnMappings = Files.readAllLines(Paths.get(GZOLT_ROOT, project.name(), bugId, SPECTRA_FILE_NAME));
+            var fqnMappings = Files.readAllLines(Paths.get(GZOLT_ROOT, bug.getProject().name(),
+                    String.valueOf(bug.getBugId()), SPECTRA_FILE_NAME));
 
-        return from(Project.valueOf(project.name()), executedTests, fqnMappings);
+            var testSubset = triggeringMode.getSubSetFn().apply(executedTests);
+
+            return testSubset.isEmpty()
+                    ? Spectrum.getEmptySpectrum(bug)
+                    : from(bug, triggeringMode, testSubset, fqnMappings);
+        } catch (Exception e) {
+            LOG.error("Failed to parse into spectrum of bug = {}, triggering mode = {}", bug, triggeringMode, e);
+        }
+
+        return Spectrum.getEmptySpectrum(bug);
     }
 
     private static final Function<String, Test> toExecutedTest = testCoverageLine -> {
@@ -57,7 +78,7 @@ public class CoverageParser {
         return ImmutableTest.of(result, coverageLocations, coverageLocations.size());
     };
 
-    private static Spectrum from(Project project, List<Test> executedTests, List<String> fqnMappings) {
+    private static Spectrum from(Bug bug, TriggeringMode triggeringMode, List<Test> executedTests, List<String> fqnMappings) {
 
         int totalLocations = executedTests.get(0).getNumberOfLocations();
 
@@ -103,7 +124,9 @@ public class CoverageParser {
         }
 
         return ImmutableSpectrum.builder()
-                .project(project)
+                .bug(bug)
+                .triggeringMode(triggeringMode)
+                .project(bug.getProject())
                 .entities(entities)
                 .totalOfFailedTests(totalFailedTests)
                 .totalOfPassedTests(totalPassedTests)
