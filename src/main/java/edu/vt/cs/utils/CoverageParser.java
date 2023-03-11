@@ -36,31 +36,37 @@ public class CoverageParser {
     private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public static Spectrum parse(Bug bug) throws IOException {
-        return parse(bug, TriggeringMode.COMPLETE);
+        return parse(bug, TriggeringMode.COMPLETE, GZOLT_ROOT);
     }
 
-    public static Spectrum parse(Bug bug, TriggeringMode triggeringMode) {
+    public static Spectrum parse(Bug bug, String gzoltarsPath) throws IOException {
+        return parse(bug, TriggeringMode.COMPLETE, gzoltarsPath);
+    }
+
+    public static Spectrum parse(Bug bug, TriggeringMode triggeringMode, String gzoltarsPath) {
         try {
-            LOG.info("Parsing spectrum of bug = {} in mode = {}", bug, triggeringMode);
-            var executedTests = Files.readAllLines(Paths.get(GZOLT_ROOT, bug.getProject().name(),
+            LOG.info("Parsing spectrum of bug = {} in mode = {}", bug.getName(), triggeringMode);
+
+            var executedTests = Files.readAllLines(Paths.get(gzoltarsPath, bug.getProject().name(),
                             String.valueOf(bug.getBugId()), MATRIX_FILE_NAME))
                     .stream()
                     .map(toExecutedTest)
                     .toList();
 
-            var fqnMappings = Files.readAllLines(Paths.get(GZOLT_ROOT, bug.getProject().name(),
+            var fqnMappings = Files.readAllLines(Paths.get(gzoltarsPath, bug.getProject().name(),
                     String.valueOf(bug.getBugId()), SPECTRA_FILE_NAME));
 
             var testSubset = triggeringMode.getSubSetFn().apply(executedTests);
 
             return testSubset.isEmpty()
-                    ? Spectrum.getEmptySpectrum(bug)
+                    ? Spectrum.getEmptySpectrum(bug, triggeringMode)
                     : from(bug, triggeringMode, testSubset, fqnMappings);
+
         } catch (Exception e) {
             LOG.error("Failed to parse into spectrum of bug = {}, triggering mode = {}", bug, triggeringMode, e);
         }
 
-        return Spectrum.getEmptySpectrum(bug);
+        return Spectrum.getEmptySpectrum(bug, triggeringMode);
     }
 
     private static final Function<String, Test> toExecutedTest = testCoverageLine -> {

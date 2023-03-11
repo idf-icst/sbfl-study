@@ -17,6 +17,7 @@
         <junit5.version>5.9.2</junit5.version>
         <jackson-databind.version>2.14.2</jackson-databind.version>
         <immutables.version>2.9.3</immutables.version>
+        <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
     </properties>
 
     <dependencies>
@@ -70,4 +71,22 @@
             <version>3.0.2</version>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>edu.vt.cs.evaluation.Evaluator</mainClass>
+                        </manifest>
+                    </archive>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

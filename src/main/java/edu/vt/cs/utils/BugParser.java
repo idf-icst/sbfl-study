@@ -1,5 +1,7 @@
 package edu.vt.cs.utils;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.vt.cs.models.Bug;
 import edu.vt.cs.models.Constants;
 import edu.vt.cs.models.ImmutableBug;
@@ -9,9 +11,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -19,11 +23,12 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static edu.vt.cs.models.Constants.BUG_FILE_ENDING;
-import static edu.vt.cs.models.Constants.REAL_BUG_ID_UPPER_BOUND;
+import static edu.vt.cs.models.Constants.*;
 
 public class BugParser {
     private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final Function<Path, List<String>> getBugLocations = bugFilePath -> {
         try {
@@ -67,6 +72,16 @@ public class BugParser {
                 .collect(Collectors.toList());
     }
 
+    public static void serializeBugs(String destPath) throws IOException {
+        Files.writeString(Paths.get(destPath), objectMapper.writeValueAsString(parse()), Charset.defaultCharset());
+    }
+
+    public static List<Bug> derBugs(String srcPath) throws IOException {
+        List<Bug> bugs = objectMapper.readValue(Paths.get(srcPath).toFile(), new TypeReference<>() { });
+
+        return bugs;
+    }
+
     public static void exportGroundTruthsToFile(String filePath) throws IOException {
         var bugToLocationsMap = getGroundTruths();
 
@@ -92,5 +107,10 @@ public class BugParser {
         });
 
         System.out.println("Total = " + bugToLocationsMap.entrySet().size());
+    }
+
+    public static void main(String[] args) throws IOException {
+//        serializeBugs(BUG_DIR);
+        derBugs(BUG_DIR);
     }
 }

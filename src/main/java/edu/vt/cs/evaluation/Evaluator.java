@@ -16,6 +16,8 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -27,36 +29,59 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static edu.vt.cs.utils.TestSubsetUtil.divideListBySizeK;
+
 public class Evaluator {
     private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final BiFunction<Bug, TriggeringMode, Callable<Spectrum>> toSpectrumParsingTask
-            = (bug, triggeringMode) -> () -> CoverageParser.parse(bug, triggeringMode);
+    private String bugDir = Constants.BUG_DIR;
+    private String gzoltarsDir = Constants.GZOLT_ROOT;
+    private String resultDir = Constants.RESULT_DIR;
+
+    public Evaluator(String bugDir, String gzoltarsDir, String resultDir) {
+        if (bugDir != null) {
+            this.bugDir = bugDir;
+        }
+
+        if (gzoltarsDir != null) {
+            this.gzoltarsDir = gzoltarsDir;
+        }
+
+        if (resultDir != null) {
+            this.resultDir = resultDir;
+        }
+    }
+
+    private final BiFunction<Bug, TriggeringMode, Callable<Spectrum>> toSpectrumParsingTask
+            = (bug, triggeringMode) -> () -> CoverageParser.parse(bug, triggeringMode, gzoltarsDir);
 
     private static final Function<Spectrum, Callable<List<Spectrum>>> toRankingTasks
             = spectrum -> () -> new Ranker().rankAll(spectrum);
 
-    private static final Function<Spectrum, Runnable> toFileWriteTask = spectrum -> () -> {
-        Path destPath = Paths.get(Constants.RESULT_DIR, spectrum.getName() + "." + Constants.RESULT_FILE_TYPE);
+    private final Function<Spectrum, Runnable> toFileWritingTask = spectrum -> () -> {
+        Path destPath = Paths.get(resultDir, spectrum.getName() + "." + Constants.RESULT_FILE_TYPE);
         try {
-            LOG.info("Writing spectrum = {} result to file", spectrum);
+            LOG.info("Writing spectrum = {} result to file", spectrum.getName());
             String jsonContent = objectMapper.writeValueAsString(spectrum);
             Files.writeString(destPath, jsonContent, Charset.defaultCharset());
         } catch (Exception e) {
-            LOG.error("Failed to write spectrum = {} result to file", spectrum, e);
+            LOG.error("Failed to write spectrum = {} result to file", spectrum.getName(), e);
         }
     };
 
-    private static final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+    static final int threadPoolSize = Runtime.getRuntime().availableProcessors();
+    static final int k = 2;
 
-    private static void eval(List<Bug> bugs) throws InterruptedException {
+    private void eval(List<Bug> bugs) throws InterruptedException {
+
+        final ExecutorService executorService = Executors.newFixedThreadPool(k);
 
         var parsingToSpectrumTasks = bugs
                 .stream()
@@ -78,7 +103,7 @@ public class Evaluator {
         var writingResultToFileTasks = results.stream().map(Evaluator::parseFutureGet)
                 .filter(Objects::nonNull)
                 .flatMap(Collection::stream)
-                .map(toFileWriteTask)
+                .map(toFileWritingTask)
                 .map(executorService::submit)
                 .toList();
 
@@ -87,12 +112,27 @@ public class Evaluator {
         executorService.shutdown();
     }
 
-    public static void evalAll() throws IOException, InterruptedException {
-        eval(BugParser.parse());
-    }
+    public void evalAll() throws IOException {
 
-    public static void eval(int k) throws IOException, InterruptedException {
-        eval(BugParser.parse().stream().limit(k).collect(Collectors.toList()));
+        AtomicInteger bugsProcessed = new AtomicInteger(0);
+
+        var allMultiLocationBugs = BugParser.derBugs(bugDir);
+
+        var bulkLoads = divideListBySizeK(allMultiLocationBugs, k);
+
+        Function<List<Bug>, Runnable> bugsRunnable = bugs -> () -> {
+            try {
+                eval(bugs);
+                LOG.info("\nBugs have been processed so far: {} / {}\n",
+                        bugsProcessed.addAndGet(bugs.size()), allMultiLocationBugs.size());
+            } catch (InterruptedException e) {
+                LOG.error("Error running these bugs ={} ", bugs, e);
+            }
+        };
+
+        final ExecutorService executorService = Executors.newFixedThreadPool(threadPoolSize);
+
+        bulkLoads.stream().map(bugsRunnable).forEach(executorService::submit);
     }
 
     private static <V> V parseFutureGet(Future<V> f) {
@@ -117,6 +157,18 @@ public class Evaluator {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        evalAll();
+        var startTime = LocalDateTime.now();
+
+        String bugDir = args.length > 0 ? args[0] : null;
+        String gzoltarsDir = args.length > 1 ? args[1] : null;
+        String resultDir = args.length > 2 ? args[2] : null;
+
+        Evaluator evaluator = new Evaluator(bugDir, gzoltarsDir, resultDir);
+
+        evaluator.evalAll();
+
+        var endTime = LocalDateTime.now();
+
+        LOG.info("DONE! time taken = {} hours", ChronoUnit.HOURS.between(startTime, endTime));
     }
 }

@@ -47,9 +47,10 @@ public interface Spectrum {
     @Nullable
     List<Entity> getRankedEntitiesList();
 
-    static Spectrum getEmptySpectrum(Bug bug) {
+    static Spectrum getEmptySpectrum(Bug bug, TriggeringMode triggeringMode) {
         return ImmutableSpectrum.builder()
                 .bug(bug)
+                .triggeringMode(triggeringMode)
                 .project(bug.getProject())
                 .totalOfPassedTests(0)
                 .totalOfFailedTests(0)

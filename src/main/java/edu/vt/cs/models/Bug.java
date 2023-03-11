@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.immutables.value.Value;
 
-import javax.annotation.Nonnull;
 import java.util.List;
 
 @Value.Immutable
@@ -22,4 +21,8 @@ public interface Bug {
 
     @Value.Parameter
     List<String> getLocations();
+
+    default String getName() {
+        return getProject().name() + "::" + getBugId();
+    }
 }
