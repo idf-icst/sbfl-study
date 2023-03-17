@@ -34,7 +34,7 @@ public interface EvalResult {
     Metrics getMetrics();
 
     default String getCsvFormat() {
-        return String.format("%s, %d, %s, %s, %d, %d, %d, %f, %f",
+        return String.format("%s, %d, %s, %s, %d, %d, %d, %f, %f, %s",
                 getProject().name(),
                 getBugId(),
                 getTriggeringMode() == null ? "Unknown" : getTriggeringMode().name(),
@@ -43,7 +43,8 @@ public interface EvalResult {
                 getMetrics().getTop5(),
                 getMetrics().getTop10(),
                 getMetrics().getMap(),
-                getMetrics().getMrr()
+                getMetrics().getMrr(),
+                getMetrics().getRanks()
         );
     }
 

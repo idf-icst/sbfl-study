@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.immutables.value.Value;
 
+import javax.annotation.Nullable;
+import java.util.List;
+
 @Value.Immutable
 @JsonSerialize
 @JsonDeserialize(as = ImmutableMetrics.class)
@@ -24,4 +27,8 @@ public abstract class Metrics {
 
     @Value.Parameter
     public abstract double getMrr();
+
+    @Value.Parameter
+    @Nullable
+    public abstract List<Integer> getRanks();
 }

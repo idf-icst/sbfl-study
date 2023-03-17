@@ -19,6 +19,7 @@ public class Constants {
     public static final String BUG_FILE_ENDING = "buggy.lines";
     public static final String RESULT_DIR = "data/results";
     public static final String RESULT_CSV = "data/csv/results.csv";
+    public static final String RESULT_WITH_RANKS_CSV = "data/csv/results_with_ranks.csv";
     public static final String RESULT_BY_TRIGGERING_MODE_CSV = "data/csv/reduced_by_triggering_mode.csv";
     public static final String RESULT_BY_ALGORITHM_CSV = "data/csv/reduced_by_algorithm.csv";
     public static final String RESULT_BY_PROJECT_CSV = "data/csv/reduced_by_project.csv";

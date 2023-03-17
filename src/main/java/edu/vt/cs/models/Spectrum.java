@@ -115,12 +115,9 @@ public interface Spectrum {
                 }
             }
 
-            if (rank <= k) {
-                pk++;
-            }
-
             if (rank < Integer.MAX_VALUE) {
-                map += ((double) pk) / k;
+                pk++;
+                map += ((double) pk) / rank;
             }
         }
 
@@ -134,6 +131,7 @@ public interface Spectrum {
                 .top10(top10)
                 .map(map)
                 .mrr(mrr)
+                .ranks(ranks)
                 .build();
     }
 }

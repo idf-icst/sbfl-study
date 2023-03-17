@@ -24,8 +24,17 @@ public class ResultParser {
     private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     public static void main(String[] args) throws IOException {
-       readAndSummarizeCsvResults(Constants.RESULT_CSV, Constants.RESULT_BY_BUG_CSV,
-               evalResult -> evalResult.getProject() + "::" + evalResult.getBugId());
+        readAndSummarizeCsvResults(Constants.RESULT_WITH_RANKS_CSV, Constants.RESULT_BY_TRIGGERING_MODE_CSV,
+                EvalResult::getTriggeringMode);
+
+        readAndSummarizeCsvResults(Constants.RESULT_WITH_RANKS_CSV, Constants.RESULT_BY_ALGORITHM_CSV,
+                EvalResult::getRankingAlgorithm);
+
+        readAndSummarizeCsvResults(Constants.RESULT_WITH_RANKS_CSV, Constants.RESULT_BY_PROJECT_CSV,
+                EvalResult::getProject);
+
+        readAndSummarizeCsvResults(Constants.RESULT_WITH_RANKS_CSV, Constants.RESULT_BY_BUG_CSV,
+                evalResult -> evalResult.getProject() + "::" + evalResult.getBugId());
     }
 
     private static <T> void readAndSummarizeCsvResults(String csvPath, String reducedOutputPath,
