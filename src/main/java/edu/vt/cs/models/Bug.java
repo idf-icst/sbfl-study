@@ -1,5 +1,6 @@
 package edu.vt.cs.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -22,6 +23,7 @@ public interface Bug {
     @Value.Parameter
     List<String> getLocations();
 
+    @JsonIgnore
     default String getName() {
         return getProject().name() + "::" + getBugId();
     }

@@ -108,9 +108,4 @@ public class BugParser {
 
         System.out.println("Total = " + bugToLocationsMap.entrySet().size());
     }
-
-    public static void main(String[] args) throws IOException {
-//        serializeBugs(BUG_DIR);
-        derBugs(BUG_DIR);
-    }
 }

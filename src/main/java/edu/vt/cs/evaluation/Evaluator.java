@@ -157,6 +157,10 @@ public class Evaluator {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
+        evaluateAllAndSaveIntermediateResults(args);
+    }
+
+    private static void evaluateAllAndSaveIntermediateResults(String[] args) throws IOException {
         var startTime = LocalDateTime.now();
 
         String bugDir = args.length > 0 ? args[0] : null;

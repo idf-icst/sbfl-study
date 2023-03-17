@@ -18,6 +18,11 @@ public class Constants {
             "pipeline-scripts/buggy-lines";
     public static final String BUG_FILE_ENDING = "buggy.lines";
     public static final String RESULT_DIR = "data/results";
+    public static final String RESULT_CSV = "data/csv/results.csv";
+    public static final String RESULT_BY_TRIGGERING_MODE_CSV = "data/csv/reduced_by_triggering_mode.csv";
+    public static final String RESULT_BY_ALGORITHM_CSV = "data/csv/reduced_by_algorithm.csv";
+    public static final String RESULT_BY_PROJECT_CSV = "data/csv/reduced_by_project.csv";
+    public static final String RESULT_BY_BUG_CSV = "data/csv/reduced_by_bug.csv";
     public static final String RESULT_FILE_TYPE = "json";
     public static final String BUG_DIR = "data/multi-bugs/all.json";
 }
