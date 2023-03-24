@@ -18,7 +18,6 @@ public class Ranker implements Ranking {
     @SuppressWarnings("ConstantConditions")
     @Override
     public Spectrum rank(RankingAlgorithm rankingAlgorithm, Spectrum spectrum) {
-        LOG.info("Ranking {} in algorithm = {}", spectrum.getName(), rankingAlgorithm);
         var rankedList = spectrum.getEntities()
                 .stream()
                 .map(entity -> ImmutableEntity.copyOf(entity)

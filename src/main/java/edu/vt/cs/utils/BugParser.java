@@ -15,7 +15,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -46,19 +45,23 @@ public class BugParser {
     private static final Function<Path, Integer> toBugId = filePath -> Integer.parseInt(filePath.toFile().getName()
             .split("-")[1].split("\\.")[0]);
 
-    private static final Predicate<Path> isRealBugFromDefect4JProjects = filePath -> filePath.toFile().getName().endsWith(BUG_FILE_ENDING)
+    public static final Predicate<Path> isRealBugFromDefect4JProjects = filePath -> filePath.toFile().getName().endsWith(BUG_FILE_ENDING)
             && Stream.of(Project.values()).anyMatch(project -> filePath.toFile().getName().toUpperCase().startsWith(project.name().toUpperCase()))
             && toBugId.apply(filePath) < REAL_BUG_ID_UPPER_BOUND;
 
-    public static Map<String, List<String>> getGroundTruths() throws IOException {
+    private static final Predicate<Path> isArtificialBugFromDefect4JProjects = filePath -> filePath.toFile().getName().endsWith(BUG_FILE_ENDING)
+            && Stream.of(Project.values()).anyMatch(project -> filePath.toFile().getName().toUpperCase().startsWith(project.name().toUpperCase()))
+            && toBugId.apply(filePath) >= REAL_BUG_ID_UPPER_BOUND;
+
+    public static Map<String, List<String>> getGroundTruths(Predicate<Path> filter) throws IOException {
         return Files.find(Paths.get(Constants.GROUND_TRUTH), Integer.MAX_VALUE,
-                        (filePath, fileAttr) -> fileAttr.isRegularFile() && isRealBugFromDefect4JProjects.test(filePath))
+                        (filePath, fileAttr) -> fileAttr.isRegularFile() && filter.test(filePath))
                 .filter(isMultiLocationBug)
                 .collect(Collectors.toMap(getBugName, getBugLocations));
     }
 
-    public static List<Bug> parse() throws IOException {
-        return getGroundTruths().entrySet().stream()
+    public static List<Bug> parse(Predicate<Path> filter) throws IOException {
+        List<Bug> tmp = getGroundTruths(filter).entrySet().stream()
                 .map(bugEntry -> {
                     Project project = Project.valueOf(bugEntry.getKey().split("-")[0].trim());
                     int bugId = Integer.parseInt(bugEntry.getKey().split("-")[1].trim());
@@ -70,20 +73,21 @@ public class BugParser {
                 })
                 .peek(b -> LOG.info("Parsing bug = {}", b))
                 .collect(Collectors.toList());
+
+        LOG.info("Found {} multiple-location bugs", tmp.size());
+        return tmp;
     }
 
-    public static void serializeBugs(String destPath) throws IOException {
-        Files.writeString(Paths.get(destPath), objectMapper.writeValueAsString(parse()), Charset.defaultCharset());
+    public static void serializeBugs(String destPath, Predicate<Path> filter) throws IOException {
+        Files.writeString(Paths.get(destPath), objectMapper.writeValueAsString(parse(filter)), Charset.defaultCharset());
     }
 
     public static List<Bug> derBugs(String srcPath) throws IOException {
-        List<Bug> bugs = objectMapper.readValue(Paths.get(srcPath).toFile(), new TypeReference<>() { });
-
-        return bugs;
+        return objectMapper.readValue(Paths.get(srcPath).toFile(), new TypeReference<>() { });
     }
 
-    public static void exportGroundTruthsToFile(String filePath) throws IOException {
-        var bugToLocationsMap = getGroundTruths();
+    public static void exportGroundTruthsToFile(String filePath, Predicate<Path> filter) throws IOException {
+        var bugToLocationsMap = getGroundTruths(filter);
 
         List<String> lines = bugToLocationsMap.entrySet().stream()
                 .flatMap(ent -> Stream.concat(
@@ -98,7 +102,7 @@ public class BugParser {
     }
 
     private static void printAllMultiLocationBugs() throws IOException {
-        var bugToLocationsMap = getGroundTruths();
+        var bugToLocationsMap = getGroundTruths(isRealBugFromDefect4JProjects);
 
         bugToLocationsMap.forEach((key, value) -> {
             System.out.println("BugId = " + key);
@@ -107,5 +111,9 @@ public class BugParser {
         });
 
         System.out.println("Total = " + bugToLocationsMap.entrySet().size());
+    }
+
+    public static void main(String[] args) throws IOException {
+        serializeBugs(ARTIFICIAL_BUG_DIR, isArtificialBugFromDefect4JProjects);
     }
 }

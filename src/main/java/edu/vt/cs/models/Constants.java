@@ -19,11 +19,22 @@ public class Constants {
     public static final String BUG_FILE_ENDING = "buggy.lines";
     public static final String RESULT_DIR = "data/results";
     public static final String RESULT_CSV = "data/csv/results.csv";
-    public static final String RESULT_WITH_RANKS_CSV = "data/csv/results_with_ranks.csv";
-    public static final String RESULT_BY_TRIGGERING_MODE_CSV = "data/csv/reduced_by_triggering_mode.csv";
-    public static final String RESULT_BY_ALGORITHM_CSV = "data/csv/reduced_by_algorithm.csv";
-    public static final String RESULT_BY_PROJECT_CSV = "data/csv/reduced_by_project.csv";
-    public static final String RESULT_BY_BUG_CSV = "data/csv/reduced_by_bug.csv";
+
+    public static final String RESULT_OF_ARTIFICIAL_BUGS_CSV = "data/csv/results/artificial/artificial-bug-results.csv";
+    public static final String RESULT_OF_REAL_BUGS_CSV = "data/csv/results/real/real-bug-results.csv";
+
+    public static final String RESULT_REAL_BY_TRIGGERING_MODE_CSV = "data/csv/results/real/real_reduced_by_triggering_mode.csv";
+    public static final String RESULT_ARTIFICIAL_BY_TRIGGERING_MODE_CSV = "data/csv/results/artificial/artificial_reduced_by_triggering_mode.csv";
+
+    public static final String RESULT_REAL_BY_ALGORITHM_CSV = "data/csv/results/real/real_reduced_by_algorithm.csv";
+    public static final String RESULT_ARTIFICIAL_BY_ALGORITHM_CSV = "data/csv/results/artificial/artificial_reduced_by_algorithm.csv";
+
+    public static final String RESULT_REAL_BY_PROJECT_CSV = "data/csv/results/real/real_reduced_by_project.csv";
+    public static final String RESULT_ARTIFICIAL_BY_PROJECT_CSV = "data/csv/results/artificial/artificial_reduced_by_project.csv";
+
+    public static final String RESULT_REAL_BY_BUG_CSV = "data/csv/results/real/real_reduced_by_bug.csv";
+    public static final String RESULT_ARTIFICIAL_BY_BUG_CSV = "data/csv/results/artificial/artificial_reduced_by_bug.csv";
     public static final String RESULT_FILE_TYPE = "json";
-    public static final String BUG_DIR = "data/multi-bugs/all.json";
+    public static final String BUG_DIR = "data/multi-bugs/all_real_bugs.json";
+    public static final String ARTIFICIAL_BUG_DIR = "data/multi-bugs/all_artificial_bugs.json";
 }

@@ -3,6 +3,7 @@ package edu.vt.cs.evaluation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.vt.cs.models.Bug;
 import edu.vt.cs.models.Constants;
+import edu.vt.cs.models.Project;
 import edu.vt.cs.models.Spectrum;
 import edu.vt.cs.ranking.Ranker;
 import edu.vt.cs.utils.BugParser;
@@ -22,26 +23,24 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.Optional;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static edu.vt.cs.evaluation.ResultParser.processedSpectrum;
 import static edu.vt.cs.utils.TestSubsetUtil.divideListBySizeK;
 
 public class Evaluator {
     private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    private String bugDir = Constants.BUG_DIR;
+//    private String bugDir = Constants.BUG_DIR;
+    private String bugDir = Constants.ARTIFICIAL_BUG_DIR;
     private String gzoltarsDir = Constants.GZOLT_ROOT;
     private String resultDir = Constants.RESULT_DIR;
 
@@ -59,12 +58,21 @@ public class Evaluator {
         }
     }
 
+    /**
+     * [1] given a bug and a triggering mode, build a corresponding spectrum snapshot
+     */
     private final BiFunction<Bug, TriggeringMode, Callable<Spectrum>> toSpectrumParsingTask
             = (bug, triggeringMode) -> () -> CoverageParser.parse(bug, triggeringMode, gzoltarsDir);
 
+    /**
+     * [2] do a ranking on a spectrum's entities, using all algorithms
+     */
     private static final Function<Spectrum, Callable<List<Spectrum>>> toRankingTasks
             = spectrum -> () -> new Ranker().rankAll(spectrum);
 
+    /**
+     * [3] write a spectrum with ranked list of entities to a file
+     */
     private final Function<Spectrum, Runnable> toFileWritingTask = spectrum -> () -> {
         Path destPath = Paths.get(resultDir, spectrum.getName() + "." + Constants.RESULT_FILE_TYPE);
         try {
@@ -76,10 +84,27 @@ public class Evaluator {
         }
     };
 
-    static final int threadPoolSize = Runtime.getRuntime().availableProcessors();
-    static final int k = 2;
+    private final Function<Spectrum, Callable<Optional<EvalResult>>> spectrumToEvalResult = spectrum -> () -> {
+        try {
+            return processedSpectrum.apply(spectrum).call();
+        } catch (Exception e) {
+            LOG.error("Error while converting spectrum to eval results");
+        }
+        return Optional.empty();
+    };
 
-    private void eval(List<Bug> bugs) throws InterruptedException {
+    static final int threadPoolSize = Runtime.getRuntime().availableProcessors();
+    static final int k = 4;
+
+    /**
+     * Given a list of bugs, process them according to this workflow:
+     * [1] map each bug to spectrum of all triggering modes (1 bug => 16 spectrums, because of 16 triggering modes)
+     * [2] rank entities in a spectrum using all algorithms (each spectrum => 25 ranked lists, because of 25 algorithms)
+     * [3] write some 16 * 25 processed spectrums to files for later calculate metrics
+     * @param bugs: a set of bugs
+     * @throws InterruptedException
+     */
+    private String eval(List<Bug> bugs, boolean writeIntermediateResults) throws InterruptedException {
 
         final ExecutorService executorService = Executors.newFixedThreadPool(k);
 
@@ -98,41 +123,89 @@ public class Evaluator {
                 .map(toRankingTasks)
                 .collect(Collectors.toList());
 
-        var results = executorService.invokeAll(rankingTasks, 7L, TimeUnit.DAYS);
-
-        var writingResultToFileTasks = results.stream().map(Evaluator::parseFutureGet)
+        var processedSpectrums = executorService.invokeAll(rankingTasks, 7L, TimeUnit.DAYS)
+                .stream()
+                .map(Evaluator::parseFutureGet)
                 .filter(Objects::nonNull)
-                .flatMap(Collection::stream)
-                .map(toFileWritingTask)
+                .flatMap(Collection::stream).toList();
+
+        if (writeIntermediateResults) {
+            var writingResultToFileTasks = processedSpectrums.stream()
+                    .map(toFileWritingTask)
+                    .map(executorService::submit)
+                    .toList();
+
+            writingResultToFileTasks.forEach(Evaluator::getRunnable);
+        }
+
+        return processedSpectrums.stream()
+                .map(spectrumToEvalResult)
                 .map(executorService::submit)
-                .toList();
+                .map(Evaluator::parseFutureGet)
+                .filter(Objects::nonNull)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .map(EvalResult::getCsvFormat)
+                .collect(Collectors.joining("\n"));
 
-        writingResultToFileTasks.forEach(Evaluator::getRunnable);
-
-        executorService.shutdown();
     }
 
-    public void evalAll() throws IOException {
+    private static synchronized void saveCSVResults(List<String> csvLines) {
+        var destFilePath= Paths.get("data/csv/results", "artificial-bug-results.csv");
+        String csvContent = String.join("\n", csvLines);
+        try {
+            Files.writeString(destFilePath, csvContent);
+        } catch (Exception e) {
+            LOG.error("Error writing to file {}", csvContent);
+        }
+    }
+
+    public void evalAll(boolean writeToIntermediateFiles, Predicate<Bug> filter) throws IOException, InterruptedException {
+
+        var startTime = LocalDateTime.now();
 
         AtomicInteger bugsProcessed = new AtomicInteger(0);
 
-        var allMultiLocationBugs = BugParser.derBugs(bugDir);
+        var allMultiLocationBugs = BugParser.derBugs(bugDir)
+                .stream()
+                .filter(filter)
+                .collect(Collectors.toList());
 
         var bulkLoads = divideListBySizeK(allMultiLocationBugs, k);
 
-        Function<List<Bug>, Runnable> bugsRunnable = bugs -> () -> {
+        Function<List<Bug>, Callable<Optional<String>>> bugsRunnable = bugs -> () -> {
             try {
-                eval(bugs);
+                var tmp = eval(bugs, writeToIntermediateFiles);
                 LOG.info("\nBugs have been processed so far: {} / {}\n",
                         bugsProcessed.addAndGet(bugs.size()), allMultiLocationBugs.size());
+                return Optional.of(tmp);
             } catch (InterruptedException e) {
                 LOG.error("Error running these bugs ={} ", bugs, e);
             }
+            return Optional.empty();
         };
 
         final ExecutorService executorService = Executors.newFixedThreadPool(threadPoolSize);
 
-        bulkLoads.stream().map(bugsRunnable).forEach(executorService::submit);
+        var tasks = bulkLoads.stream().map(bugsRunnable).toList();
+
+        var csvLines = executorService.invokeAll(tasks, 1L, TimeUnit.HOURS)
+                .stream()
+                .map(Evaluator::parseFutureGet)
+                .filter(Objects::nonNull)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toList());
+
+        LOG.info("We got back: {} csv lines", csvLines.size());
+
+        saveCSVResults(csvLines);
+
+        var endTime = LocalDateTime.now();
+
+        LOG.info("DONE! time taken = {} SECONDS", ChronoUnit.SECONDS.between(startTime, endTime));
+
+        executorService.shutdown();
     }
 
     private static <V> V parseFutureGet(Future<V> f) {
@@ -157,22 +230,17 @@ public class Evaluator {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        evaluateAllAndSaveIntermediateResults(args);
+        evaluateAllAndSaveIntermediateResults(args, false);
     }
 
-    private static void evaluateAllAndSaveIntermediateResults(String[] args) throws IOException {
-        var startTime = LocalDateTime.now();
-
+    private static void evaluateAllAndSaveIntermediateResults(String[] args,
+                                                              boolean writeToIntermediateFiles) throws IOException, InterruptedException {
         String bugDir = args.length > 0 ? args[0] : null;
         String gzoltarsDir = args.length > 1 ? args[1] : null;
         String resultDir = args.length > 2 ? args[2] : null;
 
         Evaluator evaluator = new Evaluator(bugDir, gzoltarsDir, resultDir);
 
-        evaluator.evalAll();
-
-        var endTime = LocalDateTime.now();
-
-        LOG.info("DONE! time taken = {} hours", ChronoUnit.HOURS.between(startTime, endTime));
+        evaluator.evalAll(writeToIntermediateFiles, bug -> bug.getProject() != Project.Closure);
     }
 }

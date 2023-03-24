@@ -53,7 +53,9 @@ public class SpVector {
     }
 
     public double toTarantula() {
-        return Math.round(nf) == 0 ? 0 : (ef / (ef + nf)) / ((ef / (ef + nf)) + (ep / (ep + np)));
+        return nf == 0
+                ? 0
+                : (ef / (ef + nf)) / ((ef / (ef + nf)) + (ep / (ep + np)));
     }
 
     public double toOchiai() {
@@ -117,7 +119,7 @@ public class SpVector {
     }
 
     public double toKulczynski2() {
-        return (1 / 2) * (ef / (ef + nf) + ef / (ef + ep));
+        return 0.5 * (ef / (ef + nf) + ef / (ef + ep));
     }
 
     public double toSokal() {

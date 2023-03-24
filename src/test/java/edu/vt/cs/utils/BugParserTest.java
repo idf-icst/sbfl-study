@@ -10,12 +10,12 @@ class BugParserTest {
     @Test
     @Disabled
     void parse() throws IOException {
-        BugParser.parse().stream().limit(10).forEach(System.out::println);
+        BugParser.parse(BugParser.isRealBugFromDefect4JProjects).stream().limit(10).forEach(System.out::println);
     }
 
     @Test
     @Disabled
     void exportGroundTruthsToFile() throws IOException {
-        BugParser.exportGroundTruthsToFile("src/main/resources/bugs/all-multi-locations-bugs.txt");
+        BugParser.exportGroundTruthsToFile("src/main/resources/bugs/all-multi-locations-bugs.txt", BugParser.isRealBugFromDefect4JProjects);
     }
 }

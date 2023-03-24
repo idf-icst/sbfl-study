@@ -1,5 +1,8 @@
 package edu.vt.cs.utils;
 
+import edu.vt.cs.models.Bug;
+import edu.vt.cs.models.Constants;
+import edu.vt.cs.models.Project;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
@@ -15,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.AbstractMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -22,6 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -39,6 +44,20 @@ public class CoverageDataReader {
     private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     private static final Predicate<String> isRealBug = bugId -> Integer.parseInt(bugId) <= REAL_BUG_ID_UPPER_BOUND;
+
+    private static final List<Bug> artificialBugs;
+
+    static {
+        try {
+            artificialBugs = BugParser.derBugs("data/multi-bugs/all_artificial_bugs.json");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static final BiPredicate<String, Integer> isArtificialBug = (projectName, bugId)
+            -> artificialBugs.stream().anyMatch(b -> b.getProject() == Project.valueOf(projectName)
+            && b.getBugId() == bugId);
 
     private static void decompressTarGzipFile(InputStream uploadedInputStream, Path target) throws IOException {
 
@@ -97,7 +116,8 @@ public class CoverageDataReader {
         var tasks = Files.find(Paths.get(sourcePath), Integer.MAX_VALUE,
                         (filePath, fileAttr) -> fileAttr.isRegularFile()
                                 && filePath.toFile().getName().equals(DATA_FILE_NAME)
-                                && isRealBug.test(filePath.getParent().toFile().getName()))
+                                && isArtificialBug.test(filePath.getParent().getParent().toFile().getName(),
+                                        Integer.parseInt(filePath.getParent().toFile().getName())))
                 .limit(Math.min(noOfFiles, NO_OF_FILES_MAX))
                 .map(bugFilePath -> (Callable<Map.Entry<Boolean, Path>>) () -> decompress(bugFilePath, destPath))
                 .collect(Collectors.toList());
@@ -125,5 +145,9 @@ public class CoverageDataReader {
         assert noFailedFiles == 0;
 
         executorService.shutdown();
+    }
+
+    public static void main(String[] args) throws IOException, InterruptedException {
+        etlGzoltarCoverageData(Constants.src, Constants.dest, Integer.MAX_VALUE);
     }
 }

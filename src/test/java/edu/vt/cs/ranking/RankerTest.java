@@ -13,7 +13,7 @@ class RankerTest {
 
     @Test
     void rank() throws IOException {
-        var bug = BugParser.parse()
+        var bug = BugParser.parse(BugParser.isRealBugFromDefect4JProjects)
                 .stream()
                 .filter(b -> b.getProject() == Project.Closure && b.getBugId() == 61)
                 .findFirst()
