@@ -17,8 +17,6 @@ public class Constants {
     public static final String GROUND_TRUTH = "/Users/tdao/vt-2023/fault-localization-data/analysis/" +
             "pipeline-scripts/buggy-lines";
     public static final String BUG_FILE_ENDING = "buggy.lines";
-    public static final String RESULT_DIR = "data/results";
-    public static final String RESULT_CSV = "data/csv/results.csv";
 
     public static final String RESULT_OF_ARTIFICIAL_BUGS_CSV = "data/csv/results/artificial/artificial-bug-results.csv";
     public static final String RESULT_OF_REAL_BUGS_CSV = "data/csv/results/real/real-bug-results.csv";
@@ -35,6 +33,17 @@ public class Constants {
     public static final String RESULT_REAL_BY_BUG_CSV = "data/csv/results/real/real_reduced_by_bug.csv";
     public static final String RESULT_ARTIFICIAL_BY_BUG_CSV = "data/csv/results/artificial/artificial_reduced_by_bug.csv";
     public static final String RESULT_FILE_TYPE = "json";
-    public static final String BUG_DIR = "data/multi-bugs/all_real_bugs.json";
-    public static final String ARTIFICIAL_BUG_DIR = "data/multi-bugs/all_artificial_bugs.json";
+
+    public static final String REAL_INPUT_BUGS_DIR = "data/multi-bugs/all_real_bugs.json";
+    public static final String REAL_BUGS_RESUL_DIR = "data/csv/results/real";
+    public static final String REAL_BUGS_SPECTRUM_DIR = "data/spectrum/real";
+    public static final String CSV_RESULTS_OF_REAL_BUGS_FILE_NAME = "real-bug-results.csv";
+
+    public static final String ARTIFICIAL_INPUT_BUGS_DIR = "data/multi-bugs/all_artificial_bugs.json";
+    public static final String ARTIFICIAL_BUGS_RESULT_DIR = "data/csv/results/artificial";
+    public static final String ARTIFICIAL_BUGS_SPECTRUM_DIR = "data/spectrum/artificial";
+    public static final String CSV_RESULTS_OF_ARTIFICIAL_BUGS_FILE_NAME = "artificial-bug-results.csv";
+
+    public static final String CSV_TABLES_DIR = "data/csv/results/tables";
+
 }

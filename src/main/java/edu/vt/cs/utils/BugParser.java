@@ -3,6 +3,7 @@ package edu.vt.cs.utils;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.vt.cs.models.Bug;
+import edu.vt.cs.models.BugType;
 import edu.vt.cs.models.Constants;
 import edu.vt.cs.models.ImmutableBug;
 import edu.vt.cs.models.Project;
@@ -114,6 +115,6 @@ public class BugParser {
     }
 
     public static void main(String[] args) throws IOException {
-        serializeBugs(ARTIFICIAL_BUG_DIR, isArtificialBugFromDefect4JProjects);
+        serializeBugs(BugType.ARTIFICIAL.getInputBugInfoFilePath(), isArtificialBugFromDefect4JProjects);
     }
 }

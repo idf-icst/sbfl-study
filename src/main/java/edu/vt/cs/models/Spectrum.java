@@ -51,6 +51,12 @@ public interface Spectrum {
     @Nullable
     List<Entity> getRankedEntitiesList();
 
+    @Value.Parameter
+    @Value.Default
+    default boolean getIsEmpty() {
+        return false;
+    }
+
     static Spectrum getEmptySpectrum(Bug bug, TriggeringMode triggeringMode) {
         return ImmutableSpectrum.builder()
                 .bug(bug)
@@ -59,6 +65,7 @@ public interface Spectrum {
                 .totalOfPassedTests(0)
                 .totalOfFailedTests(0)
                 .entities(List.of())
+                .isEmpty(true)
                 .build();
     }
 

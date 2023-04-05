@@ -9,6 +9,8 @@ import edu.vt.cs.ranking.RankingAlgorithm;
 import org.immutables.value.Value;
 
 import javax.annotation.Nullable;
+import java.util.List;
+import java.util.stream.Stream;
 
 @Value.Immutable
 @JsonSerialize
@@ -61,12 +63,20 @@ public interface EvalResult {
         double map = Double.parseDouble(parts[7].trim());
         double mrr = Double.parseDouble(parts[8].trim());
 
+        var startIdx = line.indexOf("[");
+        var endIdx = line.indexOf("]");
+
+        List<Integer> ranks = Stream.of(line.substring(startIdx + 1, endIdx).split(","))
+                .map(String::trim)
+                .map(Integer::parseInt).toList();
+
         var metrics = ImmutableMetrics.builder()
                 .top1(top1)
                 .top5(top5)
                 .top10(top10)
                 .map(map)
                 .mrr(mrr)
+                .ranks(ranks)
                 .build();
 
         return ImmutableEvalResult.builder()

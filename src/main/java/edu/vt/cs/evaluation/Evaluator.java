@@ -2,6 +2,7 @@ package edu.vt.cs.evaluation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.vt.cs.models.Bug;
+import edu.vt.cs.models.BugType;
 import edu.vt.cs.models.Constants;
 import edu.vt.cs.models.Project;
 import edu.vt.cs.models.Spectrum;
@@ -24,7 +25,13 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -35,26 +42,17 @@ import java.util.stream.Stream;
 import static edu.vt.cs.evaluation.ResultParser.processedSpectrum;
 import static edu.vt.cs.utils.TestSubsetUtil.divideListBySizeK;
 
+import org.apache.commons.io.FileUtils;
+
 public class Evaluator {
     private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-//    private String bugDir = Constants.BUG_DIR;
-    private String bugDir = Constants.ARTIFICIAL_BUG_DIR;
     private String gzoltarsDir = Constants.GZOLT_ROOT;
-    private String resultDir = Constants.RESULT_DIR;
 
-    public Evaluator(String bugDir, String gzoltarsDir, String resultDir) {
-        if (bugDir != null) {
-            this.bugDir = bugDir;
-        }
-
+    public Evaluator(String gzoltarsDir) {
         if (gzoltarsDir != null) {
             this.gzoltarsDir = gzoltarsDir;
-        }
-
-        if (resultDir != null) {
-            this.resultDir = resultDir;
         }
     }
 
@@ -73,8 +71,8 @@ public class Evaluator {
     /**
      * [3] write a spectrum with ranked list of entities to a file
      */
-    private final Function<Spectrum, Runnable> toFileWritingTask = spectrum -> () -> {
-        Path destPath = Paths.get(resultDir, spectrum.getName() + "." + Constants.RESULT_FILE_TYPE);
+    private final BiFunction<Spectrum, BugType, Runnable> toFileWritingTask = (spectrum, bugType) -> () -> {
+        Path destPath = Paths.get(bugType.getTmpSpectrumDir(), spectrum.getName() + "." + Constants.RESULT_FILE_TYPE);
         try {
             LOG.info("Writing spectrum = {} result to file", spectrum.getName());
             String jsonContent = objectMapper.writeValueAsString(spectrum);
@@ -104,7 +102,7 @@ public class Evaluator {
      * @param bugs: a set of bugs
      * @throws InterruptedException
      */
-    private String eval(List<Bug> bugs, boolean writeIntermediateResults) throws InterruptedException {
+    private String eval(List<Bug> bugs, boolean writeIntermediateResults, BugType bugType) throws InterruptedException {
 
         final ExecutorService executorService = Executors.newFixedThreadPool(k);
 
@@ -120,6 +118,7 @@ public class Evaluator {
         var rankingTasks = spectrumFutureList.stream()
                 .map(Evaluator::parseFutureGet)
                 .filter(Objects::nonNull)
+                .filter(spectrum -> !spectrum.getIsEmpty())
                 .map(toRankingTasks)
                 .collect(Collectors.toList());
 
@@ -131,7 +130,7 @@ public class Evaluator {
 
         if (writeIntermediateResults) {
             var writingResultToFileTasks = processedSpectrums.stream()
-                    .map(toFileWritingTask)
+                    .map(spectrum -> toFileWritingTask.apply(spectrum, bugType))
                     .map(executorService::submit)
                     .toList();
 
@@ -150,8 +149,8 @@ public class Evaluator {
 
     }
 
-    private static synchronized void saveCSVResults(List<String> csvLines) {
-        var destFilePath= Paths.get("data/csv/results", "artificial-bug-results.csv");
+    private static synchronized void saveCSVResults(List<String> csvLines, BugType bugType) {
+        var destFilePath= Paths.get(bugType.getOutputResultDir(), bugType.getCsvResultsFileName());
         String csvContent = String.join("\n", csvLines);
         try {
             Files.writeString(destFilePath, csvContent);
@@ -160,13 +159,13 @@ public class Evaluator {
         }
     }
 
-    public void evalAll(boolean writeToIntermediateFiles, Predicate<Bug> filter) throws IOException, InterruptedException {
+    public void evalAll(boolean writeToIntermediateFiles, Predicate<Bug> filter, BugType bugType) throws IOException, InterruptedException {
 
         var startTime = LocalDateTime.now();
 
         AtomicInteger bugsProcessed = new AtomicInteger(0);
 
-        var allMultiLocationBugs = BugParser.derBugs(bugDir)
+        var allMultiLocationBugs = BugParser.derBugs(bugType.getInputBugInfoFilePath())
                 .stream()
                 .filter(filter)
                 .collect(Collectors.toList());
@@ -175,7 +174,7 @@ public class Evaluator {
 
         Function<List<Bug>, Callable<Optional<String>>> bugsRunnable = bugs -> () -> {
             try {
-                var tmp = eval(bugs, writeToIntermediateFiles);
+                var tmp = eval(bugs, writeToIntermediateFiles, bugType);
                 LOG.info("\nBugs have been processed so far: {} / {}\n",
                         bugsProcessed.addAndGet(bugs.size()), allMultiLocationBugs.size());
                 return Optional.of(tmp);
@@ -184,6 +183,14 @@ public class Evaluator {
             }
             return Optional.empty();
         };
+
+        if (writeToIntermediateFiles) {
+            try {
+                FileUtils.cleanDirectory(Paths.get(bugType.getTmpSpectrumDir()).toFile());
+            } catch (Exception e) {
+                LOG.error("Failed to cleanup intermediate spectrum dir", e);
+            }
+        }
 
         final ExecutorService executorService = Executors.newFixedThreadPool(threadPoolSize);
 
@@ -199,7 +206,13 @@ public class Evaluator {
 
         LOG.info("We got back: {} csv lines", csvLines.size());
 
-        saveCSVResults(csvLines);
+        try {
+            FileUtils.cleanDirectory(Paths.get(bugType.getOutputResultDir()).toFile());
+        } catch (Exception e) {
+            LOG.error("Failed to cleanup result dir", e);
+        }
+
+        saveCSVResults(csvLines, bugType);
 
         var endTime = LocalDateTime.now();
 
@@ -229,18 +242,22 @@ public class Evaluator {
         }
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
-        evaluateAllAndSaveIntermediateResults(args, false);
+    private static void evaluateAll(String[] args) throws IOException, InterruptedException {
+
+        String gzoltarsDir = args.length > 1 ? args[1] : null;
+
+        Evaluator evaluator = new Evaluator(gzoltarsDir);
+
+        Predicate<Bug> bugFilter = bug -> bug.getProject() != Project.Closure;
+
+        boolean writingIntermediateSpectrumData = false;
+
+        for (BugType bugType : BugType.values()) {
+            evaluator.evalAll(writingIntermediateSpectrumData, bugFilter, bugType);
+        }
     }
 
-    private static void evaluateAllAndSaveIntermediateResults(String[] args,
-                                                              boolean writeToIntermediateFiles) throws IOException, InterruptedException {
-        String bugDir = args.length > 0 ? args[0] : null;
-        String gzoltarsDir = args.length > 1 ? args[1] : null;
-        String resultDir = args.length > 2 ? args[2] : null;
-
-        Evaluator evaluator = new Evaluator(bugDir, gzoltarsDir, resultDir);
-
-        evaluator.evalAll(writeToIntermediateFiles, bug -> bug.getProject() != Project.Closure);
+    public static void evaluateAll() throws IOException, InterruptedException {
+        evaluateAll(new String[] { });
     }
 }
