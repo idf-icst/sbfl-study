@@ -43,6 +43,10 @@ public class CoverageParser {
         return parse(bug, TriggeringMode.COMPLETE, gzoltarsPath);
     }
 
+    public static Spectrum parse(Bug bug, TriggeringMode triggeringMode) {
+        return parse(bug, triggeringMode, GZOLT_ROOT);
+    }
+
     public static Spectrum parse(Bug bug, TriggeringMode triggeringMode, String gzoltarsPath) {
         try {
             LOG.info("Parsing spectrum of bug = {} in mode = {}", bug.getName(), triggeringMode);
@@ -67,6 +71,25 @@ public class CoverageParser {
         }
 
         return Spectrum.getEmptySpectrum(bug, triggeringMode);
+    }
+
+    public static int getTestCount(Bug bug, TriggeringMode triggeringMode, String gzoltarsPath) throws IOException {
+        var executedTests = Files.readAllLines(Paths.get(gzoltarsPath, bug.getProject().name(),
+                        String.valueOf(bug.getBugId()), MATRIX_FILE_NAME))
+                .stream()
+                .map(toExecutedTest)
+                .toList();
+        var testSubset = triggeringMode.getSubSetFn().apply(executedTests);
+
+        return testSubset.size();
+    }
+
+    public static int getTestCount(Bug bug, TriggeringMode triggeringMode) {
+        try {
+            return getTestCount(bug, triggeringMode, GZOLT_ROOT);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static final Function<String, Test> toExecutedTest = testCoverageLine -> {

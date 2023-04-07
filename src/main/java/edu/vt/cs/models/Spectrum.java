@@ -141,4 +141,9 @@ public interface Spectrum {
                 .ranks(ranks)
                 .build();
     }
+
+    @JsonIgnore
+    default int getTotalExecutedTests() {
+        return this.getTotalOfPassedTests() + this.getTotalOfFailedTests();
+    }
 }

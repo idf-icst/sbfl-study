@@ -38,6 +38,7 @@ public class Constants {
     public static final String REAL_BUGS_RESUL_DIR = "data/csv/results/real";
     public static final String REAL_BUGS_SPECTRUM_DIR = "data/spectrum/real";
     public static final String CSV_RESULTS_OF_REAL_BUGS_FILE_NAME = "real-bug-results.csv";
+    public static final String REAL_TESTS_COUNT_DIR = "data/csv/results/tests_executed_pct/real";
 
     public static final String ARTIFICIAL_INPUT_BUGS_DIR = "data/multi-bugs/all_artificial_bugs.json";
     public static final String ARTIFICIAL_BUGS_RESULT_DIR = "data/csv/results/artificial";
@@ -45,5 +46,6 @@ public class Constants {
     public static final String CSV_RESULTS_OF_ARTIFICIAL_BUGS_FILE_NAME = "artificial-bug-results.csv";
 
     public static final String CSV_TABLES_DIR = "data/csv/results/tables";
+    public static final String ARTIFICIAL_TESTS_COUNT_DIR = "data/csv/results/tests_executed_pct/artificial";
 
 }
